@@ -1,12 +1,15 @@
-from flask import Flask, render_template
-import os
+from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.route("/", methods=["GET"])
 def home():
     return render_template("index.html")
 
+@app.route("/run", methods=["POST"])
+def run():
+    token = request.form.get("token")
+    return f"Token received: {token}"
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render/Heroku ke liye
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=5000)
