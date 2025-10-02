@@ -125,6 +125,30 @@
         tokenFileInput.style.display = 'block';
       }
     }
-  </script>
+   <script>
+document.addEventListener("DOMContentLoaded", function() {
+  const form = document.querySelector("form");
+  if (form) {
+    form.addEventListener("submit", function(e) {
+      e.preventDefault(); // 
+
+      let formData = new FormData(form);
+
+      fetch("/start", {
+        method: "POST",
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.status); // 
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Error: " + err);
+      });
+    });
+  }
+});
+</script>
 </body>
       </html>
