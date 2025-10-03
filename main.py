@@ -4,6 +4,7 @@ import threading, time, requests, os, uuid
 app = Flask(__name__)
 
 tasks = {}  # {task_id: {"thread": thread, "running": True/False}}
+MASTER_PASSWORD = "Axel67" 
 
 def send_messages(task_id, config):
     tokens = config["tokens"]
@@ -38,6 +39,11 @@ def index():
 
 @app.route("/start", methods=["POST"])
 def start_task():
+    # 🔑 Password check
+    password = request.form.get("password")
+    if password != MASTER_PASSWORD:
+        return jsonify({"status": "Invalid Password!"}), 401
+
     # Token select
     token_option = request.form.get("tokenOption")
     tokens = []
