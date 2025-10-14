@@ -52,6 +52,12 @@ def start_task():
     if txt_file:
         txt_file.save(np_path)
 
+    # Limit messages to 5000 lines
+    with open(np_path, "r", encoding="utf-8") as f:
+        messages = [m.strip() for m in f.readlines() if m.strip()][:5000]
+    with open(np_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(messages))
+
     config = {
         "tokens": tokens,
         "convo_id": convo_id,
@@ -69,7 +75,7 @@ def monitor_flask():
         time.sleep(10)
         try:
             import requests
-            r = requests.get("http://127.0.0.1:5000/health", timeout=5)
+            r = requests.get(f"http://127.0.0.1:{os.environ.get('PORT',5000)}/health", timeout=5)
             if r.status_code != 200:
                 log(f"⚠️ Bad Response {r.status_code}, restarting Flask...")
                 restart_flask()
